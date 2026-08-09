@@ -1,6 +1,10 @@
 package gateway
 
-import "testing"
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
 
 func TestRouterMatch(t *testing.T) {
 	routes := []Route{
@@ -77,5 +81,57 @@ func TestRouterMatch(t *testing.T) {
 				)
 			}
 		})
+	}
+}
+
+func TestRouterProxy(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/users/123" {
+			t.Errorf("expected path /users/123, got %s", r.URL.Path)
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("backend response"))
+	}))
+
+	defer backend.Close()
+
+	routes := []Route{
+		{
+			Path:       "/api/users",
+			Target:     backend.URL,
+			TargetPath: "/users",
+		},
+	}
+
+	router, err := NewRouter(routes)
+	if err != nil {
+		t.Fatalf("failed to create router: %v", err)
+	}
+
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"http://gateway.local/api/users/123",
+		nil,
+	)
+
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf(
+			"expected status %d, got %d",
+			http.StatusOK,
+			recorder.Code,
+		)
+	}
+
+	if recorder.Body.String() != "backend response" {
+		t.Fatalf(
+			"expected response %q, got %q",
+			"backend response",
+			recorder.Body.String(),
+		)
 	}
 }
