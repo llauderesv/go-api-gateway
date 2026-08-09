@@ -10,11 +10,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/llauderesv/go-api-gateway/internal/config"
 	"github.com/llauderesv/go-api-gateway/internal/server"
 )
 
 func main() {
-	srv := server.New()
+	cfg, err := config.Load("config.yaml")
+	if err != nil {
+		log.Fatalf("failed to load configuration: %v", err)
+	}
+	log.Printf("loaded configuration: %+v", cfg)
+	srv, err := server.New(cfg)
 
 	errChan := make(chan error, 1)
 

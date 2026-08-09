@@ -6,15 +6,13 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+
+	"github.com/llauderesv/go-api-gateway/internal/config"
 )
 
 // Eventually Route will probably contain more than just a target URL, for example
 // Methods, Timeout, RateLimit, Middleware
-type Route struct {
-	Path       string
-	Target     string
-	TargetPath string
-}
+type Route = config.Route // Convert to alias
 
 type proxyRoute struct {
 	route Route

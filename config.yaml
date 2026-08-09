@@ -1,0 +1,6 @@
+port: 3000
+
+routes:
+  - path: /api/users
+    target: http://localhost:4000
+    targetPath: /users
