@@ -7,7 +7,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"time"
+
+	"github.com/llauderesv/go-api-gateway/internal/gateway"
 )
 
 // Config contains the server configuration.
@@ -19,6 +23,7 @@ type Config struct {
 type Server struct {
 	config     Config
 	httpServer *http.Server
+	proxy      *httputil.ReverseProxy
 }
 
 // New creates a new Server instance.
@@ -29,9 +34,35 @@ func New() *Server {
 		},
 	}
 
+	target, err := url.Parse("http://localhost:4000/users")
+	if err != nil {
+		log.Fatalf("failed to parse upstream URL: %v", err)
+	}
+	s.proxy = &httputil.ReverseProxy{
+		// Why use Rewrite instead of modifying r.URL.Path in the handler?
+		// Keep routing/proxy behavior inside the proxy configuration:
+		Rewrite: func(r *httputil.ProxyRequest) {
+			r.SetURL(target)
+
+			r.Out.URL.Path = "/users"
+		},
+	}
+	routes := []gateway.Route{
+		{
+			Path:       "/api/users",
+			Target:     "http://localhost:4000/users",
+			TargetPath: "/users",
+		},
+	}
+
+	router, err := gateway.NewRouter(routes)
+	if err != nil {
+		log.Fatalf("failed to create gateway router: %v", err)
+	}
+
 	s.httpServer = &http.Server{
 		Addr:              fmt.Sprintf(":%d", s.config.Port),
-		Handler:           s.routes(),
+		Handler:           router,
 		ReadTimeout:       10 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -65,8 +96,13 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /health", s.healthHandler)
 	mux.HandleFunc("GET /api/v1/status", s.statusHandler)
 	mux.HandleFunc("GET /slow", s.slowHandler)
+	mux.HandleFunc("GET /api/users", s.usersProxyHandler)
 
 	return mux
+}
+
+func (s *Server) usersProxyHandler(w http.ResponseWriter, r *http.Request) {
+	s.proxy.ServeHTTP(w, r)
 }
 
 type HealthResponse struct {
