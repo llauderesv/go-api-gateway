@@ -67,19 +67,39 @@ func NewRouter(routes []Route) (*Router, error) {
 // 	}
 // }
 
-func (r *Router) Match(path string) *proxyRoute {
+func (r *Router) Match(method, path string) *proxyRoute {
 	for i := range r.routes {
 		route := &r.routes[i]
-		if path == route.route.Path || strings.HasPrefix(path, route.route.Path+"/") {
-			return route
+		if !matchesPath(route.route.Path, path) {
+			continue
 		}
+
+		if !matchesMethod(route.route.Methods, method) {
+			continue
+		}
+
+		return route
 	}
 
 	return nil
 }
 
+func matchesPath(routePath, requestPath string) bool {
+	return requestPath == routePath || strings.HasPrefix(requestPath, routePath+"/")
+}
+
+func matchesMethod(methods []string, method string) bool {
+	for _, allowed := range methods {
+		if strings.EqualFold(allowed, method) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	route := r.Match(req.URL.Path)
+	route := r.Match(req.Method, req.URL.Path)
 	if route == nil {
 		http.NotFound(w, req)
 		return

@@ -10,11 +10,13 @@ func TestRouterMatch(t *testing.T) {
 	routes := []Route{
 		{
 			Path:       "/api/users",
+			Methods:    []string{"GET", "POST"},
 			Target:     "http://localhost:4000",
 			TargetPath: "/users",
 		},
 		{
 			Path:       "/api/orders",
+			Methods:    []string{"GET", "POST"},
 			Target:     "http://localhost:5000",
 			TargetPath: "/orders",
 		},
@@ -26,24 +28,34 @@ func TestRouterMatch(t *testing.T) {
 	}
 
 	tests := []struct {
-		name string
-		path string
-		want string
+		name   string
+		method string
+		path   string
+		want   string
 	}{
 		{
-			name: "users",
-			path: "/api/users",
-			want: "/api/users",
+			name:   "users",
+			method: "POST",
+			path:   "/api/users",
+			want:   "/api/users",
 		},
 		{
-			name: "user by id",
-			path: "/api/users/123",
-			want: "/api/users",
+			name:   "user by id",
+			method: "GET",
+			path:   "/api/users/123",
+			want:   "/api/users",
 		},
 		{
-			name: "orders",
-			path: "/api/orders",
-			want: "/api/orders",
+			name:   "Method not allowed",
+			method: "DELETE",
+			path:   "/api/users/123",
+			want:   "",
+		},
+		{
+			name:   "orders",
+			method: "GET",
+			path:   "/api/orders",
+			want:   "/api/orders",
 		},
 		{
 			name: "unknown route",
@@ -59,7 +71,7 @@ func TestRouterMatch(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			route := router.Match(tt.path)
+			route := router.Match(tt.method, tt.path)
 
 			if tt.want == "" {
 				if route != nil {

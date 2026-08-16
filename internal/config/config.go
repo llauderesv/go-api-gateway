@@ -7,9 +7,10 @@ import (
 )
 
 type Route struct {
-	Path       string `yaml:"path"`
-	Target     string `yaml:"target"`
-	TargetPath string `yaml:"targetPath"`
+	Path       string   `yaml:"path"`
+	Methods    []string `yaml:"methods"`
+	Target     string   `yaml:"target"`
+	TargetPath string   `yaml:"targetPath"`
 }
 
 type Config struct {
