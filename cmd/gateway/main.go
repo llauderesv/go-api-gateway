@@ -19,6 +19,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load configuration: %v", err)
 	}
+
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("invalid configuration: %v", err)
+	}
+
 	log.Printf("loaded configuration: %+v", cfg)
 	srv, err := server.New(cfg)
 
