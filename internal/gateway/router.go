@@ -67,6 +67,19 @@ func NewRouter(routes []Route) (*Router, error) {
 // 	}
 // }
 
+func (r *Router) MatchPath(path string) []*proxyRoute {
+	var matches []*proxyRoute
+	for i := range r.routes {
+		route := &r.routes[i]
+
+		if matchesPath(route.route.Path, path) {
+			matches = append(matches, route)
+		}
+	}
+
+	return matches
+}
+
 func (r *Router) Match(method, path string) *proxyRoute {
 	for i := range r.routes {
 		route := &r.routes[i]
@@ -82,6 +95,22 @@ func (r *Router) Match(method, path string) *proxyRoute {
 	}
 
 	return nil
+}
+
+func (r *Router) AllowedMethods(path string) []string {
+	var methods []string
+
+	for i := range r.routes {
+		route := &r.routes[i]
+
+		if !matchesPath(route.route.Path, path) {
+			continue
+		}
+
+		methods = append(methods, route.route.Methods...)
+	}
+
+	return methods
 }
 
 func matchesPath(routePath, requestPath string) bool {
@@ -100,11 +129,25 @@ func matchesMethod(methods []string, method string) bool {
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	route := r.Match(req.Method, req.URL.Path)
-	if route == nil {
+
+	if route != nil {
+		route.proxy.ServeHTTP(w, req)
+		return
+	}
+
+	allowedMethods := r.AllowedMethods(req.URL.Path)
+
+	if len(allowedMethods) == 0 {
 		http.NotFound(w, req)
 		return
 	}
-	route.proxy.ServeHTTP(w, req)
+
+	w.Header().Set("Allow", strings.Join(allowedMethods, ", "))
+	http.Error(
+		w,
+		http.StatusText(http.StatusMethodNotAllowed),
+		http.StatusMethodNotAllowed,
+	)
 }
 
 // func (r *Router) Match(path string) *Route {

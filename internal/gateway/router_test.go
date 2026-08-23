@@ -147,3 +147,77 @@ func TestRouterProxy(t *testing.T) {
 		)
 	}
 }
+
+func TestRouterMethodNotAllowed(t *testing.T) {
+	routes := []Route{
+		{
+			Path:       "/api/users",
+			Methods:    []string{"GET", "POST"},
+			Target:     "http://localhost:4000",
+			TargetPath: "/users",
+		},
+	}
+
+	router, err := NewRouter(routes)
+	if err != nil {
+		t.Fatalf("failed to create router: %v", err)
+	}
+
+	req := httptest.NewRequest(
+		http.MethodDelete,
+		"/api/users",
+		nil,
+	)
+
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusMethodNotAllowed {
+		t.Fatalf(
+			"expected 405, got %d",
+			recorder.Code,
+		)
+	}
+
+	if recorder.Header().Get("Allow") != "GET, POST" {
+		t.Fatalf(
+			"expected Allow header %q, got %q",
+			"GET, POST",
+			recorder.Header().Get("Allow"),
+		)
+	}
+}
+
+func TestRouterNotFound(t *testing.T) {
+	routes := []Route{
+		{
+			Path:       "/api/users",
+			Methods:    []string{"GET"},
+			Target:     "http://localhost:4000",
+			TargetPath: "/users",
+		},
+	}
+
+	router, err := NewRouter(routes)
+	if err != nil {
+		t.Fatalf("failed to create router: %v", err)
+	}
+
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/api/orders",
+		nil,
+	)
+
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf(
+			"expected 404, got %d",
+			recorder.Code,
+		)
+	}
+}
